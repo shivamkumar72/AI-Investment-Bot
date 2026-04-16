@@ -1,38 +1,22 @@
-const axios = require('axios');
 const { exec } = require('child_process');
 
+// 🔥 Simple in-memory cache (VERY IMPORTANT)
+const cache = {};
 
-// ✅ 1. Get stock data
-exports.getStockData = async (req, res) => {
-    try {
-        const symbol = req.params.symbol;
-
-        const response = await axios.get(
-            `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${process.env.STOCK_API_KEY}`
-        );
-
-        // 🔥 Handle API limit or empty data
-        if (!response.data["Global Quote"]) {
-            return res.json({ message: "API limit reached or no data" });
-        }
-
-        res.json(response.data);
-
-    } catch (error) {
-        res.status(500).json({ error: 'Error fetching stock data' });
-    }
-};
-
-
-
-// ✅ 2. AI Prediction (SAFE)
+// ===============================
+// ✅ 1. AI Prediction (with cache)
+// ===============================
 exports.predictStock = (req, res) => {
-    const symbol = req.params.symbol;
+    const symbol = req.params.symbol.toUpperCase();
+
+    // 🔥 Return cached result (avoid rate limit)
+    if (cache[symbol] && Date.now() - cache[symbol].time < 60000) {
+        return res.json(cache[symbol].data);
+    }
 
     exec(`python ml-model/predict.py ${symbol}`, (error, stdout, stderr) => {
 
-        // 🔥 Handle Python error / API limit
-        if (error || !stdout || stderr) {
+        if (error || !stdout) {
             return res.json({
                 stock: symbol,
                 current: 0,
@@ -44,7 +28,7 @@ exports.predictStock = (req, res) => {
         try {
             const result = JSON.parse(stdout);
 
-            // 🔥 Extra safety check
+            // fallback safety
             if (!result || result.current === 0) {
                 return res.json({
                     stock: symbol,
@@ -53,6 +37,12 @@ exports.predictStock = (req, res) => {
                     recommendation: "NO DATA"
                 });
             }
+
+            // 🔥 Save to cache
+            cache[symbol] = {
+                data: result,
+                time: Date.now()
+            };
 
             res.json(result);
 
@@ -68,29 +58,25 @@ exports.predictStock = (req, res) => {
 };
 
 
+// ===============================
+// 📈 2. Graph using Python (NO API LIMIT)
+// ===============================
+exports.getStockHistory = (req, res) => {
+    const symbol = req.params.symbol.toUpperCase();
 
-// ✅ 3. Stock History (GRAPH SAFE)
-exports.getStockHistory = async (req, res) => {
-    const symbol = req.params.symbol;
+    exec(`python ml-model/history.py ${symbol}`, (error, stdout, stderr) => {
 
-    try {
-        const response = await axios.get(
-            `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${process.env.STOCK_API_KEY}`
-        );
-
-        const data = response.data["Time Series (Daily)"];
-
-        // 🔥 Handle API limit
-        if (!data) {
+        if (error || !stdout) {
             return res.json({ dates: [], prices: [] });
         }
 
-        const dates = Object.keys(data).slice(0, 10).reverse();
-        const prices = dates.map(date => parseFloat(data[date]["4. close"]));
-
-        res.json({ dates, prices });
-
-    } catch (err) {
-        res.json({ dates: [], prices: [] });
-    }
+        try {
+            const result = JSON.parse(stdout);
+            res.json(result);
+        } catch (err) {
+            res.json({ dates: [], prices: [] });
+        }
+    });
 };
+
+
