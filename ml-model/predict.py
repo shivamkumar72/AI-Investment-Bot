@@ -1,6 +1,8 @@
 import yfinance as yf
 import pandas as pd
 from sklearn.linear_model import LinearRegression
+import time
+time.sleep(1)
 
 def predict_stock(symbol):
     data = yf.download(symbol, period="6mo")
