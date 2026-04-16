@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Investment Bot</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="container">
+    <h1>AI Investment Bot</h1>
+
+    <input type="text" id="symbol" placeholder="Enter Stock Symbol">
+    <button onclick="getPrediction()">Predict</button>
+
+    <div id="result" class="result-box"></div>
+
+    <!-- Add this -->
+    <canvas id="stockChart" width="300" height="200"></canvas>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
