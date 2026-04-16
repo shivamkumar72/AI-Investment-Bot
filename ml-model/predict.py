@@ -5,20 +5,25 @@ from sklearn.linear_model import LinearRegression
 def predict_stock(symbol):
     data = yf.download(symbol, period="6mo")
 
+    # ❗ FIX: handle empty data
+    if data.empty or len(data) < 2:
+        return 0, 0
+
     data['Prediction'] = data['Close'].shift(-1)
 
     X = data[['Close']].values[:-1]
     y = data['Prediction'].values[:-1]
 
+    if len(X) == 0 or len(y) == 0:
+        return 0, 0
+
     model = LinearRegression()
     model.fit(X, y)
 
-    # ✅ FIXED INDENTATION
     last_price = data[['Close']].values[-1].reshape(1, -1)
     predicted_price = model.predict(last_price)[0]
 
     return float(last_price[0][0]), float(predicted_price)
-
 
 def get_recommendation(current, predicted):
     change = ((predicted - current) / current) * 100
@@ -44,7 +49,7 @@ result = {
     "stock": symbol,
     "current": round(current, 2),
     "predicted": round(predicted, 2),
-    "recommendation": decision
+    "recommendation": decision if current != 0 else "NO DATA"
 }
 
 print(json.dumps(result))
